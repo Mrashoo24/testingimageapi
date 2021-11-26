@@ -1,8 +1,13 @@
 const express = require('express')
 const app = express()
-const port = process.env.PORT || 80;
+const port = process.env.PORT || 3000;
 const sharp = require('sharp')
 const axios = require("axios") ;
+const request = require("request") ;
+const FormData = require('form-data');
+const imageToBase64 = require('image-to-base64');
+const https = require('https');
+const fs = require('fs');
 
 app.get('/', async (req, res) => {
 
@@ -10,19 +15,36 @@ app.get('/', async (req, res) => {
   let widthimage = Number(req.query.widthimage);
   let heightimage = Number(req.query.heightimage);
 
-const image = "https://images.pexels.com/photos/2486168/pexels-photo-2486168.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=500"
+  let uid = req.query.uid;
+
+const image = req.query.image
+const qrimage = req.query.qr
 
 
 const input = (await axios({ url: image, responseType: "arraybuffer" })).data ;
+const inputqr = (await axios({ url: qrimage, responseType: "arraybuffer" })).data ;
 // const composite = (await axios({ url: "https://somewhere.com/another-image.png", responseType: "arraybuffer" })).data;
 
- await   sharp('./images/qr_1.png')
+let label1 = "Scan QR code using any camera in an emergency"; // "Medium Text" "Short"
+
+const label = Buffer.from(`
+<svg height="90" width="200">
+<text x="5" y="20" style="fill:white;">Scan QR code using any camera
+  <tspan x="5" y="45">in an emergency</tspan>
+
+</text>
+</svg>
+`);
+
+{/* <rect x="0" y="0" width="100%" height="100%" fill="#044B94" fill-opacity="0.4" /> */}
+
+ await   sharp(inputqr)
   .resize(width, width,{
     fit: sharp.fit.fill
 }) // Resize the image
   .toBuffer({ resolveWithObject: true }) // We want it to a buffer
-  .then( ({ data, info }) => {  // We now have the data / info of that buffer
-    sharp(input) // Let's start a new sharp on the underside image 
+  .then( async ({ data, info }) => {  // We now have the data / info of that buffer
+   await sharp(input) // Let's start a new sharp on the underside image 
       .resize(widthimage,heightimage,{
         fit: sharp.fit.fill
     }) // Resize the underside image
@@ -30,15 +52,68 @@ const input = (await axios({ url: image, responseType: "arraybuffer" })).data ;
         input: data 
       // Pass in the buffer data to the composite function
       ,gravity: "southeast",
-        left: widthimage - 70,
-        top:heightimage-70,
+        left: widthimage -70,
+        top:heightimage - 70,
         hasOffset: true,
       }])
-      .toFile('output.jpg', function(err) {
+      .toFile(uid+"temp"+'.jpg', function(err) {
         console.log("Error: ", err)
-      });
-    console.log(info);
-    res.send("sUCCESS");
+      }).toBuffer({ resolveWithObject: true}).then(async ({ data1, info1 })=>{
+
+
+      await  sharp(uid+"temp"+'.jpg')
+        .composite([{     
+          input: label 
+        // Pass in the buffer data to the composite function
+        ,gravity: "southwest",
+        left: 10,
+        top:heightimage - 70,
+        hasOffset: true,
+        }]).toFile(uid+'.jpg', function(err) {
+          console.log("Error: ", err)
+        }).toBuffer({ resolveWithObject: true}).then(async ({ data1, info1 })=>{
+
+
+          var base64str =  base64_encode(uid+'.jpg');
+      
+          function base64_encode(file) {
+            return "data:image/gif;base64,"+fs.readFileSync(file, 'base64');
+        } 
+  
+        let url = `http://okwale.com/qrcode.php`;
+        // let url = `http://192.168.1.12/test/imagechange.php`;   
+                  
+    
+            
+    
+    
+        request.post(
+            url,
+            { form: { file: base64str , uid:uid } },
+            function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    // console.log(body);
+                    // console.log(info);
+       res.send(body);
+                }
+            }
+        );
+
+        })
+
+
+
+
+
+      
+
+
+    
+
+      })
+
+
+
   })
   .catch(err => { 
     console.log("Error: ", err);
@@ -49,3 +124,9 @@ const input = (await axios({ url: image, responseType: "arraybuffer" })).data ;
 
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+
+
+
+// URL TO RUN http://localhost/?widthqr=50&widthimage=320&heightimage=640&uid=king&image=https://images.unsplash.com/photo-1612012460576-5d51b5b04b00?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MXx8d2FsbHBhcGVyJTIwZm9yJTIwbW9iaWxlfGVufDB8fDB8fA%3D%3D&w=1000&q=80&qr=http://okwale.com/imagereport/9653137263Qr.png
+
+// https://stackoverflow.com/questions/65865875/node-js-sharp-make-text-take-up-100-of-svg-width
