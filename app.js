@@ -1,6 +1,6 @@
 const express = require('express')
 const app = express()
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 4000;
 const sharp = require('sharp')
 const axios = require("axios") ;
 const request = require("request") ;
@@ -46,35 +46,36 @@ const label = Buffer.from(`
   .then( async ({ data, info }) => {  // We now have the data / info of that buffer
    await sharp(input) // Let's start a new sharp on the underside image 
       .resize(widthimage,heightimage,{
-        fit: sharp.fit.fill
+        fit: 'cover'
+        // sharp.fit.contain
     }) // Resize the underside image
       .composite([{     
         input: data 
       // Pass in the buffer data to the composite function
       ,gravity: "southeast",
-        left: widthimage -70,
-        top:heightimage - 70,
+        left: widthimage -90,
+        top:heightimage - 90,
         hasOffset: true,
       }])
-      .toFile(uid+"temp"+'.jpg', function(err) {
+      .toFile(uid+"temp"+'.png', function(err) {
         console.log("Error: ", err)
       }).toBuffer({ resolveWithObject: true}).then(async ({ data1, info1 })=>{
 
 
-      await  sharp(uid+"temp"+'.jpg')
+      await  sharp(uid+"temp"+'.png')
         .composite([{     
           input: label 
         // Pass in the buffer data to the composite function
         ,gravity: "southwest",
         left: 10,
-        top:heightimage - 70,
+        top:heightimage - 80,
         hasOffset: true,
-        }]).toFile(uid+'.jpg', function(err) {
+        }]).toFile(uid+'.png', function(err) {
           console.log("Error: ", err)
         }).toBuffer({ resolveWithObject: true}).then(async ({ data1, info1 })=>{
 
 
-          var base64str =  base64_encode(uid+'.jpg');
+          var base64str =  base64_encode(uid+'.png');
       
           function base64_encode(file) {
             return "data:image/gif;base64,"+fs.readFileSync(file, 'base64');
@@ -127,6 +128,7 @@ app.listen(port, () => console.log(`Example app listening on port ${port}!`))
 
 
 
-// URL TO RUN http://localhost/?widthqr=50&widthimage=320&heightimage=640&uid=king&image=https://images.unsplash.com/photo-1612012460576-5d51b5b04b00?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MXx8d2FsbHBhcGVyJTIwZm9yJTIwbW9iaWxlfGVufDB8fDB8fA%3D%3D&w=1000&q=80&qr=http://okwale.com/imagereport/9653137263Qr.png
+// URL TO RUN 
+// http://localhost:4000/?widthqr=50&widthimage=220&heightimage=240&uid=king&image=https://images.unsplash.com/photo-1612012460576-5d51b5b04b00?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MXx8d2FsbHBhcGVyJTIwZm9yJTIwbW9iaWxlfGVufDB8fDB8fA%3D%3D&w=1000&q=80&qr=https://admin.okwale.com/imagereport/9653137263Qr.png
 
 // https://stackoverflow.com/questions/65865875/node-js-sharp-make-text-take-up-100-of-svg-width
